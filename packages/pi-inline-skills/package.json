@@ -1,6 +1,6 @@
 {
 	"name": "@tunglam/pi-inline-skills",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"description": "Codex-style inline $skill references for the pi coding agent: mention skills anywhere in your prompt and have full SKILL.md bodies injected alongside your message.",
 	"type": "module",
 	"main": "src/index.ts",
