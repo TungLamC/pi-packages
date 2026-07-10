@@ -1,0 +1,42 @@
+{
+	"name": "pi-inline-skills",
+	"version": "0.1.0",
+	"description": "Codex-style inline $skill references for the pi coding agent: mention skills anywhere in your prompt and have full SKILL.md bodies injected alongside your message.",
+	"type": "module",
+	"main": "src/index.ts",
+	"license": "MIT",
+	"keywords": [
+		"pi-package",
+		"pi-extension",
+		"skills",
+		"mention",
+		"autocomplete"
+	],
+	"files": [
+		"src",
+		"README.md",
+		"LICENSE"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/TungLamC/pi-packages.git",
+		"directory": "packages/pi-inline-skills"
+	},
+	"pi": {
+		"extensions": [
+			"./src/index.ts"
+		]
+	},
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org/",
+		"access": "public"
+	},
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": ">=0.79.1",
+		"@earendil-works/pi-tui": ">=0.79.1"
+	}
+}

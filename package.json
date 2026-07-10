@@ -1,0 +1,28 @@
+{
+  "name": "pi-packages",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "check": "npm run typecheck && npm test",
+    "pack:dry-run": "npm pack --workspaces --dry-run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TungLamC/pi-packages.git"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.80.3",
+    "@earendil-works/pi-tui": "^0.80.3",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
