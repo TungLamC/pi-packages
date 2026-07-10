@@ -8,8 +8,9 @@ Each directory under `packages/` is an independent npm package. Keep package ver
 
 ## Repository layout
 
-- `packages/pi-inline-skills/` — TypeScript extension that adds inline `$skill` references, autocomplete, context injection, deduplication, and a visible receipt.
+- `packages/pi-inline-skills/` — `@tunglam/pi-inline-skills`, a TypeScript extension that adds inline `$skill` references, autocomplete, context injection, deduplication, and a visible receipt.
 - `.github/workflows/ci.yml` — shared validation for the workspace.
+- `.github/workflows/publish-inline-skills.yml` — tag-driven trusted publishing for `@tunglam/pi-inline-skills`.
 - `package.json` and `package-lock.json` — root workspace definition and the single dependency lockfile.
 
 Do not add a root-level `pi` manifest unless the repository is intentionally being changed into an install-all Pi package.
@@ -37,8 +38,8 @@ npm run pack:dry-run
 Useful package-scoped commands:
 
 ```bash
-npm test --workspace=pi-inline-skills
-npm run typecheck --workspace=pi-inline-skills
+npm test --workspace=@tunglam/pi-inline-skills
+npm run typecheck --workspace=@tunglam/pi-inline-skills
 pi -e ./packages/pi-inline-skills
 ```
 

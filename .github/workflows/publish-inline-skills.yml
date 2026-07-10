@@ -1,9 +1,9 @@
-name: Publish pi-inline-skills
+name: Publish @tunglam/pi-inline-skills
 
 on:
   push:
     tags:
-      - "pi-inline-skills@*"
+      - "@tunglam/pi-inline-skills@*"
 
 permissions:
   contents: read
@@ -32,8 +32,9 @@ jobs:
       - name: Verify release tag
         shell: bash
         run: |
+          package_name="$(node -p "require('./packages/pi-inline-skills/package.json').name")"
           package_version="$(node -p "require('./packages/pi-inline-skills/package.json').version")"
-          expected_tag="pi-inline-skills@${package_version}"
+          expected_tag="${package_name}@${package_version}"
 
           if [[ "${GITHUB_REF_NAME}" != "${expected_tag}" ]]; then
             echo "Release tag ${GITHUB_REF_NAME} does not match ${expected_tag}." >&2
@@ -50,4 +51,4 @@ jobs:
         run: npm run pack:dry-run
 
       - name: Publish package
-        run: npm publish --workspace=pi-inline-skills --access public --registry=https://registry.npmjs.org/
+        run: npm publish --workspace=@tunglam/pi-inline-skills --access public --registry=https://registry.npmjs.org/

@@ -1,4 +1,4 @@
-# pi-inline-skills
+# @tunglam/pi-inline-skills
 
 Codex-style inline `$skill` references for the [pi coding agent](https://pi.dev).
 
@@ -20,7 +20,7 @@ model sees: ① your message, verbatim ($ token kept)
 ## Install
 
 ```bash
-pi install npm:pi-inline-skills
+pi install npm:@tunglam/pi-inline-skills
 ```
 
 Requires pi **>= 0.79.1** (extension autocomplete `triggerCharacters` support).
@@ -64,7 +64,7 @@ text with the skill body. `$name` works anywhere and keeps your text intact. Use
 
 ## Comparison
 
-| | codex `$skill` | pi native `/skill:` | pi-inline-skills |
+| | codex `$skill` | pi native `/skill:` | @tunglam/pi-inline-skills |
 |---|---|---|---|
 | Position | anywhere | message start only | anywhere |
 | User text | preserved | replaced | preserved |
