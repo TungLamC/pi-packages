@@ -6,13 +6,13 @@ Reference a skill **anywhere** in your prompt — start, middle, several at once
 `SKILL.md` body is injected alongside your message. Your original text is never rewritten.
 
 ```
-you type:   帮我用 $blog-generation 写一篇关于 X 的文章
+you type:   Use $example to help me with X
 model sees: ① your message, verbatim ($ token kept)
             ② a companion message with the skill body:
 
 <skill>
-<name>blog-generation</name>
-<path>/abs/path/blog-generation/SKILL.md</path>
+<name>example</name>
+<path>/abs/path/example/SKILL.md</path>
 ...SKILL.md body, frontmatter stripped...
 </skill>
 ```
