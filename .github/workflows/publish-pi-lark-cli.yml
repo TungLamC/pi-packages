@@ -1,0 +1,73 @@
+name: Publish @tunglam/pi-lark-cli
+
+on:
+  push:
+    tags:
+      - "@tunglam/pi-lark-cli@*"
+  # The sync workflow pushes release tags with GITHUB_TOKEN, which never fires
+  # the tag event, so it dispatches this workflow with the tag as input.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (@tunglam/pi-lark-cli@X.Y.Z)"
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: publish-pi-lark-cli
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'TungLamC/pi-packages'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Check out and verify release tag
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${TAG}" =~ ^@tunglam/pi-lark-cli@[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "${TAG} is not a valid release tag." >&2
+            exit 1
+          fi
+          git fetch --quiet origin "refs/tags/${TAG}:refs/tags/${TAG}"
+          git checkout --quiet --detach "refs/tags/${TAG}"
+          package_name="$(node -p "require('./packages/pi-lark-cli/package.json').name")"
+          package_version="$(node -p "require('./packages/pi-lark-cli/package.json').version")"
+          expected_tag="${package_name}@${package_version}"
+          if [[ "${TAG}" != "${expected_tag}" ]]; then
+            echo "Tag ${TAG} does not match ${expected_tag} at the tagged commit." >&2
+            exit 1
+          fi
+
+      - name: Install dependencies (scripts disabled)
+        run: npm ci --ignore-scripts
+
+      - name: Check workspace
+        run: npm run check
+
+      - name: Verify package contents
+        run: npm run pack:dry-run
+
+      - name: Publish package
+        run: npm publish --workspace=@tunglam/pi-lark-cli --ignore-scripts --access public --registry=https://registry.npmjs.org/

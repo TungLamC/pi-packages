@@ -1,0 +1,61 @@
+{
+	"name": "@tunglam/pi-lark-cli",
+	"version": "0.1.0",
+	"description": "Lark/Feishu CLI for the pi coding agent: bundles the official lark-cli binary for your platform plus the full set of official lark-* skills, kept in sync with upstream releases.",
+	"type": "module",
+	"license": "MIT",
+	"larkCliVersion": "1.0.68",
+	"keywords": [
+		"pi-package",
+		"pi-extension",
+		"lark",
+		"feishu",
+		"skills",
+		"lark-cli"
+	],
+	"files": [
+		"src",
+		"bin",
+		"skills",
+		"README.md",
+		"LICENSE",
+		"UPSTREAM_LICENSE"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/TungLamC/pi-packages.git",
+		"directory": "packages/pi-lark-cli"
+	},
+	"pi": {
+		"extensions": [
+			"./src/index.ts"
+		],
+		"skills": [
+			"./skills"
+		]
+	},
+	"os": [
+		"darwin",
+		"linux",
+		"win32"
+	],
+	"cpu": [
+		"x64",
+		"arm64",
+		"riscv64"
+	],
+	"publishConfig": {
+		"registry": "https://registry.npmjs.org/",
+		"access": "public"
+	},
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@larksuite/cli": "1.0.68"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": ">=0.80.3"
+	}
+}

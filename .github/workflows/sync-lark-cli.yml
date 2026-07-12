@@ -1,0 +1,228 @@
+name: Sync pi-lark-cli with upstream
+
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch: {}
+
+permissions: {}
+
+concurrency:
+  group: sync-pi-lark-cli
+  cancel-in-progress: false
+
+jobs:
+  check:
+    # Privileged downstream jobs chain off this one, so refuse to run from
+    # anything but the default branch (schedule always runs there).
+    if: github.repository == 'TungLamC/pi-packages' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      sync_needed: ${{ steps.decide.outputs.sync_needed }}
+      version: ${{ steps.decide.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+
+      - name: Decide required work
+        id: decide
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "sync_needed=false" >> "$GITHUB_OUTPUT"
+
+          latest_tag="$(gh api repos/larksuite/cli/releases/latest --jq .tag_name)"
+          current="$(node -p "require('./packages/pi-lark-cli/package.json').larkCliVersion")"
+
+          # The sync script clones refs/tags/v<version>, so only accept
+          # upstream tags in exactly that shape.
+          if [[ ! "${latest_tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Upstream tag ${latest_tag} is not a strict vX.Y.Z release; ignoring." >&2
+            exit 0
+          fi
+          version="${latest_tag#v}"
+          highest="$(printf '%s\n%s\n' "${version}" "${current}" | sort -V | tail -n1)"
+          if [[ "${version}" == "${current}" || "${highest}" != "${version}" ]]; then
+            exit 0
+          fi
+          if ! npm view "@larksuite/cli@${version}" version --registry=https://registry.npmjs.org/ > /dev/null 2>&1; then
+            echo "GitHub release ${latest_tag} exists but @larksuite/cli@${version} is not on npm yet; retrying next run."
+            exit 0
+          fi
+          echo "sync_needed=true" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+  # Runs upstream install scripts and the freshly downloaded binary, so this
+  # job gets no permissions, no OIDC, and no repository write access.
+  smoke:
+    needs: check
+    if: needs.check.outputs.sync_needed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {}
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install and run the upstream CLI
+        shell: bash
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          workdir="$(mktemp -d)"
+          cd "${workdir}"
+          npm init -y > /dev/null
+          npm install "@larksuite/cli@${VERSION}" --registry=https://registry.npmjs.org/
+          reported="$(./node_modules/.bin/lark-cli --version)"
+          echo "${reported}"
+          [[ "${reported}" == *"${VERSION}"* ]]
+
+  # Runs the sync script and the full third-party toolchain with read access
+  # only; its result leaves as an artifact for the commit job.
+  prepare:
+    needs: [check, smoke]
+    if: needs.check.outputs.sync_needed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install dependencies (scripts disabled)
+        run: npm ci --ignore-scripts
+
+      - name: Vendor upstream skills and pin versions
+        run: node packages/pi-lark-cli/scripts/sync-upstream.mjs "${{ needs.check.outputs.version }}"
+
+      - name: Refresh lockfile (scripts disabled)
+        run: npm install --ignore-scripts
+
+      - name: Check workspace
+        run: npm run check
+
+      - name: Verify package contents
+        run: npm run pack:dry-run
+
+      - name: Bundle changed paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar --exclude='packages/pi-lark-cli/node_modules' \
+            -czf "${RUNNER_TEMP}/pi-lark-cli-sync.tgz" packages/pi-lark-cli package-lock.json
+
+      - name: Upload sync artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: pi-lark-cli-sync
+          path: ${{ runner.temp }}/pi-lark-cli-sync.tgz
+          retention-days: 3
+          if-no-files-found: error
+
+  # The only job with write access. Handles the prepared artifact as data:
+  # verifies its paths, commits, tags, pushes, and dispatches publish. Runs no
+  # npm installs and no third-party toolchain.
+  commit:
+    needs: [check, smoke, prepare]
+    if: needs.check.outputs.sync_needed == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Download sync artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: pi-lark-cli-sync
+          path: ${{ runner.temp }}
+
+      - name: Verify and apply artifact
+        shell: bash
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/pi-lark-cli-sync.tgz"
+          while IFS= read -r member; do
+            case "${member}" in
+              /*|*..*)
+                echo "Refusing artifact member with unsafe path: ${member}" >&2
+                exit 1
+                ;;
+              packages/pi-lark-cli|packages/pi-lark-cli/*|package-lock.json)
+                ;;
+              *)
+                echo "Refusing artifact member outside allowed paths: ${member}" >&2
+                exit 1
+                ;;
+            esac
+          done < <(tar -tzf "${archive}")
+          rm -rf packages/pi-lark-cli
+          tar -xzf "${archive}"
+          status="$(git status --porcelain)"
+          if [[ -n "$(echo "${status}" | grep -v -E '^.. (packages/pi-lark-cli/|packages/pi-lark-cli$|package-lock\.json$)' || true)" ]]; then
+            echo "Artifact changed files outside allowed paths:" >&2
+            echo "${status}" >&2
+            exit 1
+          fi
+          synced_upstream="$(node -p "require('./packages/pi-lark-cli/package.json').larkCliVersion")"
+          if [[ "${synced_upstream}" != "${VERSION}" ]]; then
+            echo "Artifact larkCliVersion ${synced_upstream} does not match expected ${VERSION}." >&2
+            exit 1
+          fi
+
+      - name: Commit, tag, and push
+        id: release
+        shell: bash
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          pi_version="$(node -p "require('./packages/pi-lark-cli/package.json').version")"
+          if [[ ! "${pi_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid package version: ${pi_version}" >&2
+            exit 1
+          fi
+          tag="@tunglam/pi-lark-cli@${pi_version}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/pi-lark-cli package-lock.json
+          # Vendored upstream markdown is exempt from the whitespace gate.
+          git diff --cached --check -- . ':(exclude)packages/pi-lark-cli/skills/**'
+          git commit -m "chore(pi-lark-cli): sync upstream lark-cli v${VERSION}"
+          git tag "${tag}"
+          git push --atomic origin "HEAD:${GITHUB_REF_NAME}" "refs/tags/${tag}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      # Tags pushed with GITHUB_TOKEN never fire the tag event, so dispatch
+      # the publish workflow explicitly.
+      - name: Trigger publish workflow
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: gh workflow run publish-pi-lark-cli.yml --ref main -f tag="${TAG}"
