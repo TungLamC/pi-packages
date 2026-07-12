@@ -7,6 +7,7 @@ Personal monorepo for independently published [Pi](https://pi.dev) packages.
 | Package | Description | Install |
 | --- | --- | --- |
 | [`@tunglam/pi-inline-skills`](packages/pi-inline-skills) | Codex-style inline `$skill` references for Pi | `pi install npm:@tunglam/pi-inline-skills` |
+| [`@tunglam/pi-lark-cli`](packages/pi-lark-cli) | Official lark-cli binary plus all official `lark-*` skills, synced with upstream releases | `pi install npm:@tunglam/pi-lark-cli` |
 
 Each directory under `packages/` is an independent npm package with its own version and Pi manifest. The repository root is private and is not itself a Pi package.
 
@@ -38,6 +39,9 @@ pi -e ./packages/pi-inline-skills
 Packages are versioned and published independently through package-specific GitHub OIDC workflows.
 After the package version is committed and CI passes, push an annotated tag matching the full npm
 package name and version, such as `@tunglam/pi-inline-skills@0.1.3`.
+
+`@tunglam/pi-lark-cli` normally needs no manual releases: an hourly workflow tracks upstream
+lark-cli releases and commits, tags, and publishes automatically.
 
 ## License
 
