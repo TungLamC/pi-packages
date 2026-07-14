@@ -39,10 +39,10 @@ pi update npm:@tunglam/pi-lark-cli
 
 ## Coexisting with a global lark-cli
 
-If you also installed lark-cli globally (for other agents), both can coexist: inside pi the bundled binary wins on `PATH`; outside pi your global one is untouched. The extension shows a one-time notice when it detects this. To keep a single installation:
+If you also installed lark-cli globally (for other agents), both can coexist: inside pi the bundled binary wins on `PATH`; outside pi your global one is untouched. The extension only warns when user-level `lark-*` skills are also active and override the bundled skills. Choose one setup:
 
-- Use only the global one: `pi remove npm:@tunglam/pi-lark-cli`
-- Use only this package: `npm rm -g @larksuite/cli`, and if you had installed lark skills into `~/.pi/agent/skills/` or `~/.agents/skills/`, block them in `~/.pi/agent/settings.json` with `"skills": ["!skills/lark-*"]`
+- Use the external CLI and skills in pi: `pi remove npm:@tunglam/pi-lark-cli`
+- Use this package's matched CLI and skills in pi: for auto-discovered user skills, add `"!skills/lark-*"` to the `skills` array in `~/.pi/agent/settings.json`; for another package or explicit path, disable it with `pi config`. Then run `/reload`. The global CLI remains available to other agents.
 
 Note pi gives local skills precedence over package skills by design: a same-name skill in your global or project skill directories overrides the vendored one.
 
