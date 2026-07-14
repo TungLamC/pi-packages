@@ -2,13 +2,13 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import { join, dirname, isAbsolute, relative, sep } from "node:path";
+import { join, dirname } from "node:path";
 import { prependPath, removePath, findExternalLarkCli } from "./env.ts";
 
 const require = createRequire(import.meta.url);
 const binDir = fileURLToPath(new URL("../bin", import.meta.url));
-const skillsDir = fileURLToPath(new URL("../skills", import.meta.url));
 const ownPkg = require("../package.json") as { name: string; version: string; larkCliVersion: string };
+const ownSource = `npm:${ownPkg.name}`;
 type CommandInfo = ReturnType<ExtensionAPI["getCommands"]>[number];
 
 interface CliInfo {
@@ -29,9 +29,8 @@ function resolveCliInfo(): CliInfo | null {
 	}
 }
 
-function isInside(parent: string, child: string): boolean {
-	const path = relative(parent, child);
-	return path === "" || (path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path));
+function isOwnPackageSource(source: string): boolean {
+	return source === ownSource || source.startsWith(`${ownSource}@`);
 }
 
 export function findActiveExternalUserLarkSkills(commands: CommandInfo[]): CommandInfo[] {
@@ -40,7 +39,7 @@ export function findActiveExternalUserLarkSkills(commands: CommandInfo[]): Comma
 			command.source === "skill" &&
 			command.name.startsWith("skill:lark-") &&
 			command.sourceInfo.scope === "user" &&
-			!isInside(skillsDir, command.sourceInfo.path),
+			!isOwnPackageSource(command.sourceInfo.source),
 	);
 }
 
