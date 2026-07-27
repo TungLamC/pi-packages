@@ -48,6 +48,8 @@ lark-cli calendar +agenda --as user
 lark-cli calendar +get --calendar-id <calendar_id> --event-id <event_id>
 ```
 
+日程描述统一使用 `description` 一个字段，按 **Markdown** 富文本处理。读取日程时 `description` 返回 Markdown 富文本（仅有纯文本描述时返回该纯文本）；创建/更新日程时也通过 `--description` 传入 Markdown。
+
 ### `+search-event` — 按关键词、时间范围和参会人搜索日程
 
 仅返回基础字段（`event_id`/`summary`/`start`/`end` 等），需要详情请走 `+get`。
