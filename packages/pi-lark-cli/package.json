@@ -1,10 +1,10 @@
 {
 	"name": "@tunglam/pi-lark-cli",
-	"version": "0.1.23",
+	"version": "0.1.24",
 	"description": "Lark/Feishu CLI for the pi coding agent: bundles the official lark-cli binary for your platform plus the full set of official lark-* skills, kept in sync with upstream releases.",
 	"type": "module",
 	"license": "MIT",
-	"larkCliVersion": "1.0.89",
+	"larkCliVersion": "1.0.90",
 	"keywords": [
 		"pi-package",
 		"pi-extension",
@@ -53,7 +53,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@larksuite/cli": "1.0.89"
+		"@larksuite/cli": "1.0.90"
 	},
 	"peerDependencies": {
 		"@earendil-works/pi-coding-agent": ">=0.80.3"
