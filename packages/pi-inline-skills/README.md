@@ -37,6 +37,27 @@ Requires pi **>= 0.79.1** (extension autocomplete `triggerCharacters` support).
 - **Visible receipt**: a collapsed aside under your message shows what was injected and its token
   cost (expand for the raw XML). Toggle with `display off`.
 
+### Argument hints
+
+Add `argument-hint` to a skill's frontmatter to show a dim placeholder after a complete `$skill` mention in the input editor:
+
+```yaml
+---
+name: review
+description: Review a change
+argument-hint: "<path> [focus]"
+---
+```
+
+Typing `$review` shows `$review <path> [focus]` in the editor, with the hint dimmed.
+The hint disappears when you enter arguments or move the cursor away from the end. It never
+changes the editor text or submitted prompt. Long hints are clipped to the available space;
+skills without a valid hint behave as before.
+
+Load this package **before editor-wrapping statusline extensions** such as `pi-topping-statusline`
+in your `packages` list. The hint editor is installed once during session startup, then the
+statusline wraps it. Reversing that order can cause the statusline to wrap its own border twice.
+
 ## Configuration
 
 These are user preferences, so config is a single user-level file in your pi agent dir —
