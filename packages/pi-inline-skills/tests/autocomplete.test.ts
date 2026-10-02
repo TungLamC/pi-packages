@@ -1,7 +1,7 @@
 import type { AutocompleteProvider } from "@earendil-works/pi-tui";
 import { describe, expect, it, vi } from "vitest";
 import { buildSkillItems, createInlineSkillsProvider } from "../src/autocomplete.ts";
-import { collectSkills } from "../src/skills.ts";
+import { collectLoadedSkills, collectSkills } from "../src/skills.ts";
 
 const skills = new Map([
 	["blog", "/skills/blog/SKILL.md"],
@@ -35,6 +35,22 @@ describe("collectSkills", () => {
 		];
 		const collected = collectSkills(commands as Parameters<typeof collectSkills>[0]);
 		expect([...collected.entries()]).toEqual([["blog", "/p/blog"]]);
+	});
+});
+
+describe("collectLoadedSkills", () => {
+	it("uses authoritative loaded skill paths with first occurrence precedence", () => {
+		const collected = collectLoadedSkills([
+			{ name: " blog ", filePath: "/p/blog/SKILL.md" },
+			{ name: "blog", filePath: "/dup/SKILL.md" },
+			{ name: "", filePath: "/p/empty/SKILL.md" },
+			{ name: "broken", filePath: "" },
+		]);
+		expect([...collected.entries()]).toEqual([["blog", "/p/blog/SKILL.md"]]);
+	});
+
+	it("returns an empty map when Pi reports no loaded skills", () => {
+		expect(collectLoadedSkills(undefined).size).toBe(0);
 	});
 });
 
