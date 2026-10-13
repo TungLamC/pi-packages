@@ -1,7 +1,8 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { AutocompleteItem } from "@earendil-works/pi-tui";
 import type { InlineSkillsSettings } from "./settings.ts";
-import { buildSessionContext } from "@earendil-works/pi-coding-agent";
+import { buildSessionContext, CustomEditor } from "@earendil-works/pi-coding-agent";
+import { loadArgumentHints, withArgumentHints } from "./argument-hints.ts";
 import { buildSkillItems, createInlineSkillsProvider } from "./autocomplete.ts";
 import { buildInjection, collectPreviousFull } from "./injection.ts";
 import { collectMentionedSkills } from "./mentions.ts";
@@ -13,11 +14,16 @@ export default function piInlineSkills(pi: ExtensionAPI): void {
 	// getCommands() throws before the core binds; only read it inside events.
 	let skills = new Map<string, string>();
 	let items: AutocompleteItem[] = [];
+	let hints = new Map<string, string>();
+	type EditorFactory = NonNullable<ReturnType<ExtensionContext["ui"]["getEditorComponent"]>>;
+	let previousEditorFactory: EditorFactory | undefined;
+	let hintEditorFactory: EditorFactory | undefined;
 	const settings: InlineSkillsSettings = defaultSettings();
 
 	function refresh(): void {
 		skills = collectSkills(pi.getCommands());
 		items = buildSkillItems(skills);
+		hints = loadArgumentHints(skills);
 	}
 
 	pi.registerMessageRenderer(INLINE_SKILLS_TYPE, renderInlineSkillsMessage);
@@ -45,6 +51,25 @@ export default function piInlineSkills(pi: ExtensionAPI): void {
 		Object.assign(settings, defaultSettings(), loadSettings());
 		if (ctx.hasUI)
 			ctx.ui.addAutocompleteProvider((current) => createInlineSkillsProvider(current, () => items));
+		if (ctx.hasUI && (!("mode" in ctx) || ctx.mode === "tui")) {
+			const baseFactory = ctx.ui.getEditorComponent();
+			previousEditorFactory = baseFactory;
+			hintEditorFactory = (tui, theme, keybindings) => withArgumentHints(
+				baseFactory?.(tui, theme, keybindings) ?? new CustomEditor(tui, theme, keybindings),
+				() => hints,
+				(text) => ctx.ui.theme.fg("dim", text),
+			);
+			// Install only at startup, before later statusline wrappers. Reinstalling
+			// during resources_discover would nest those wrappers inside themselves.
+			ctx.ui.setEditorComponent(hintEditorFactory);
+		}
+	});
+
+	pi.on("session_shutdown", (_event, ctx) => {
+		if (hintEditorFactory && ctx.ui.getEditorComponent() === hintEditorFactory)
+			ctx.ui.setEditorComponent(previousEditorFactory);
+		hintEditorFactory = undefined;
+		previousEditorFactory = undefined;
 	});
 
 	// Best-effort refresh so the $ popup reflects reloaded skills. It cannot be
