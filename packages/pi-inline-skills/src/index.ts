@@ -59,6 +59,8 @@ export default function piInlineSkills(pi: ExtensionAPI): void {
 		// getCommands() is authoritative — fixes skills missed by the stale
 		// resources_discover read above.
 		refresh();
+		if (!("prompt" in event))
+			return undefined;
 		const mentioned = collectMentionedSkills(event.prompt, skills);
 		if (mentioned.length === 0)
 			return undefined;
