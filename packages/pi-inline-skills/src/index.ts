@@ -6,8 +6,14 @@ import { buildSkillItems, createInlineSkillsProvider } from "./autocomplete.ts";
 import { buildInjection, collectPreviousFull } from "./injection.ts";
 import { collectMentionedSkills } from "./mentions.ts";
 import { createInlineSkillsMessage, renderInlineSkillsMessage, INLINE_SKILLS_TYPE } from "./message.ts";
-import { collectSkills } from "./skills.ts";
+import { collectLoadedSkills, collectSkills } from "./skills.ts";
 import { applyToggle, COMMAND_OPTIONS, defaultSettings, loadSettings } from "./settings.ts";
+
+const STALE_EXTENSION_CONTEXT_MESSAGE = "This extension ctx is stale after session replacement or reload";
+
+function isStaleExtensionContextError(error: unknown): boolean {
+	return error instanceof Error && error.message.includes(STALE_EXTENSION_CONTEXT_MESSAGE);
+}
 
 export default function piInlineSkills(pi: ExtensionAPI): void {
 	// getCommands() throws before the core binds; only read it inside events.
@@ -15,9 +21,20 @@ export default function piInlineSkills(pi: ExtensionAPI): void {
 	let items: AutocompleteItem[] = [];
 	const settings: InlineSkillsSettings = defaultSettings();
 
-	function refresh(): void {
-		skills = collectSkills(pi.getCommands());
+	function replaceSkills(nextSkills: Map<string, string>): void {
+		skills = nextSkills;
 		items = buildSkillItems(skills);
+	}
+
+	function refreshFromCommands(): void {
+		try {
+			replaceSkills(collectSkills(pi.getCommands()));
+		} catch (error) {
+			if (!isStaleExtensionContextError(error))
+				throw error;
+			// Do not retain paths from a session or cwd whose runtime was replaced.
+			replaceSkills(new Map());
+		}
 	}
 
 	pi.registerMessageRenderer(INLINE_SKILLS_TYPE, renderInlineSkillsMessage);
@@ -38,7 +55,7 @@ export default function piInlineSkills(pi: ExtensionAPI): void {
 	});
 
 	pi.on("session_start", (_event, ctx) => {
-		refresh();
+		refreshFromCommands();
 		// Reset then apply user config so a prior session's runtime toggles
 		// never leak (session_start fires on startup/reload/new/resume/fork).
 		// Config is a user-owned file in the agent dir — no project trust needed.
@@ -51,14 +68,13 @@ export default function piInlineSkills(pi: ExtensionAPI): void {
 	// authoritative: discovered skill paths are applied only after every
 	// resources_discover handler returns, so getCommands() is still stale here.
 	pi.on("resources_discover", () => {
-		refresh();
+		refreshFromCommands();
 	});
 
 	pi.on("before_agent_start", async (event, ctx) => {
-		// Always refresh: this runs after all discovery is applied, so
-		// getCommands() is authoritative — fixes skills missed by the stale
-		// resources_discover read above.
-		refresh();
+		// This event carries Pi's authoritative post-discovery skill list and
+		// avoids calling a captured ExtensionAPI after session replacement.
+		replaceSkills(collectLoadedSkills(event.systemPromptOptions.skills));
 		const mentioned = collectMentionedSkills(event.prompt, skills);
 		if (mentioned.length === 0)
 			return undefined;
