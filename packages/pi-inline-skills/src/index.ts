@@ -55,6 +55,10 @@ export default function piInlineSkills(pi: ExtensionAPI): void {
 	});
 
 	pi.on("before_agent_start", async (event, ctx) => {
+		// Custom-message runs have no prompt. Checking the field also supports
+		// older Pi versions that do not expose messageType.
+		if (typeof event.prompt !== "string")
+			return undefined;
 		// Always refresh: this runs after all discovery is applied, so
 		// getCommands() is authoritative — fixes skills missed by the stale
 		// resources_discover read above.
